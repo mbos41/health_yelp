@@ -28,6 +28,7 @@ rownames(Theta) <- Documents
 #      c(0.025, 0.3, 0.3, 0.025, 0.35),
 #      c(0.01, 0.01, 0.3, 0.5, 0.18))
 zn <- rdirichlet(K, beta) 
+zn_t <- t(zn)
 colnames(zn) <- Terms
 rownames(zn) <- Topics
 
@@ -50,8 +51,9 @@ generateDoc <- function(docLength, topic_dist, terms_topics_dist){
   mu <- t(eta) %*% zBar
   y <- rnorm(1, mu, sigma2)
   noise_sample <- c()
-  for (j in seq(200)){noise_sample <- paste(noise_sample, sample(noise, 1, replace= TRUE))}
-  return(c(y, paste(document, noise_sample)))
+  #for (j in seq(200)){noise_sample <- paste(noise_sample, sample(noise, 1, replace= TRUE))}
+  #return(c(y, paste(document, noise_sample)))
+  return(c(y, document))
 }
 
 corpus <- list()
@@ -67,7 +69,7 @@ for (i in seq(M)){
 
 
 doc.list <- strsplit(text, "[[:space:]]+")
-vocab <- c(Terms, noise)
+vocab <- c(Terms)
 #vocab <- c(Terms)
 #vocab <- lasso_terms
 #vocab <- rf_terms
@@ -88,7 +90,7 @@ set.seed(200)
 k = 3
 params <- sample(c(-1, 1), k, replace=TRUE)
 t1 <- Sys.time()
-slda_trained <- slda.em(documents = docs_valid, vocab =  vocab, K = k, num.e.iterations = 20, num.m.iterations = 10, variance = 50, 
+slda_trained <- slda.em(documents = docs_valid, vocab =  vocab, K = k, num.e.iterations = 20, num.m.iterations = 1000, variance = 50, 
                         alpha = 1, eta = 0.1, annotations = response_valid, params, logistic = FALSE, method = "sLDA")
 t2 <- Sys.time()
 t2 - t1
@@ -133,4 +135,19 @@ dtm_filter <- dtm[,term_tfidf > 0.025]
 dtm_filter$dimnames
 
 tfidf_terms <- dtm_filter$dimnames[[2]]
+
+### Chi-squared ###
+terms <- as.data.frame(as.matrix(dtm))
+
+chi_text <- function(x){
+  a <- as.numeric(sum((x==1)*(response==1)))
+  b <- as.numeric(sum((x==1)*(response==0)))
+  c <- as.numeric(sum((x==0)*(response==1)))
+  d <- as.numeric(sum((x==0)*(response==0)))
+  (length(x)*((a*d - c*b)**2))/((a+c)*(b+d)*(a+b)*(c+d))
+}
+
+chi_stats <- sapply(terms, chi_text)
+chi_sorted <- sort(chi_stats, decreasing = TRUE)
+vocab_chi <- names(chi_sorted[1:2000])
 
